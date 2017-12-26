@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>webmmo</title>
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+        <script src="http://code.createjs.com/easeljs-0.8.1.min.js"></script>
+        <script>
+            var socket;
+            var ships = {};
+            var my_id;
+            var control = {
+                a: 0,
+                r: 0,
+            };
+            var rotating = 0;
+            var send_control_timeout;
+            var control_allowed = true;
+            var time_since_turn;
+
+            $(function() {
+                console.log(window);
+                var ws_path = "ws://" + window.location.host + "/_hippie/ws";
+                socket = new WebSocket(ws_path);
+                socket.onopen = function() {
+                    $('#connection-status').text("Connected");
+                };
+                socket.onerror = function() {
+                    $('#connection-status').text("Error");
+                }
+                socket.onclose = function() {
+                    $('#connection-status').text("Disconnected");
+                }
+                socket.onmessage = function(e) {
+                    var data = JSON.parse(e.data);
+                    console.log(e.data, data, control);
+                    switch(data.type) {
+                        case 'tick':
+                            ships = data.ships;
+                            update_projections();
+                            // control_container.visible = true;
+                            control_allowed = true;
+                            clearTimeout(send_control_timeout);
+                            control.a = 0;
+                            time_since_turn = 0;
+                            send_control_timeout = setTimeout(function() {
+                                send_msg({type: 'control', control: control});
+                                // control_container.visible = false;
+                                control_allowed = false;
+                            }, 2500);
+                        break;
+                        case 'id':
+                            my_id = data.id;
+                        break;
+                    }
+                };
+
+                init_game('game-canvas');
+            });
+             
+            function send_msg(message) {
+                if (message == undefined) {
+
+                }
+                socket.send( JSON.stringify(message) );
+            }
+
+            function update_ships(dt) {
+                // console.log(ships);
+                var dt_powered = dt ? Math.pow(0.5, dt) : undefined;
+                Object.entries(ships).forEach(function(o) {
+                    [client_id, ship_data] = o;
+
+                    if (dt) {
+                        ship_data.x += ship_data.dx * dt;
+                        ship_data.y += ship_data.dy * dt;
+                    }
+
+                    var shape = get_ship_shape(client_id);
+                    shape.x        = ship_data.x;
+                    shape.y        = ship_data.y;
+                    shape.rotation = ship_data.r * 180 / 3.14;
+                });
+
+                Object.keys(ship_shapes).forEach(function(client_id) {
+                    if (ships[client_id] === undefined) {
+                        ships_container.removeChild(ship_shapes[client_id]);
+                        delete ship_shapes[client_id];
+                    }
+                });
+
+                if (my_id && ships[my_id]) {
+                    update_control(dt);
+                }
+            }
+
+            function update_projections() {
+                projections_shape.graphics.clear().s('white');
+                Object.values(ships).forEach(function(ship) {
+                    ship.nx = ship.x + ship.dx * 3;
+                    ship.ny = ship.y + ship.dy * 3;
+                    projections_shape.graphics.mt(ship.x, ship.y).lt(ship.nx, ship.ny);
+                });
+
+                if (my_id && ships[my_id]) {
+                    control_container.x = ships[my_id].x + ships[my_id].dx * 3;
+                    control_container.y = ships[my_id].y + ships[my_id].dy * 3;
+
+                    timer_shape.x = ships[my_id].x + ships[my_id].dx * 3 - 30;
+                    timer_shape.y = ships[my_id].y + ships[my_id].dy * 3 - 30;
+                }
+            }
+
+            function update_control(dt) {
+                // console.log(rotating, control);
+                if (control_allowed) {
+                    control.r += 2 * rotating * dt;
+                    if (control.a == 1) {
+                        control_container.children[3].visible = true;
+                    }
+                    else {
+                        control_container.children[3].visible = false;
+                    }
+                    if (control.a == -1) {
+                        control_container.children[4].visible = true;
+                    }
+                    else {
+                        control_container.children[4].visible = false;
+                    }
+                }
+
+                timer_shape.graphics.clear();
+                var current_angle = 6.28 * time_since_turn / 3;
+                var nocontrol_angle = 6.28 * 2.5 / 3;
+                var end_angle = 6.28;
+                var start_red_angle = Math.max(current_angle, nocontrol_angle);
+                if (time_since_turn < 2.5) {
+                    timer_shape.graphics.f('green').mt(0, 0).lt( 15 * Math.cos(current_angle), 15 * Math.sin(current_angle) ).a(0, 0, 15, current_angle, nocontrol_angle);
+                }
+                timer_shape.graphics.f('red').mt(0, 0).lt( 15 * Math.cos(start_red_angle), 15 * Math.sin(start_red_angle) ).a(0, 0, 15, start_red_angle, end_angle);
+                // timer_shape.graphics.f('red').mt(0, 0).lt(0, -15).a(0, 0, 15, -1.047, 6.28 * time_since_turn / 3 - 1.57, true).cp();
+
+                control_container.rotation = control.r * 180 / 3.14;
+
+                var ndx = ships[my_id].dx + control.a * 100 * Math.cos(control.r) * 3;
+                var ndy = ships[my_id].dy + control.a * 100 * Math.sin(control.r) * 3;
+
+                ndx *= ships[my_id].i;
+                ndy *= ships[my_id].i;
+
+                if (Math.abs(ndx) < 1) {
+                    ndx = 0;
+                }
+                if (Math.abs(ndy) < 1) {
+                    ndy = 0;
+                }
+
+                var nnx = ships[my_id].nx + ndx * 3;
+                var nny = ships[my_id].ny + ndy * 3;
+
+                control_projection_shape.graphics.clear().s('lightgray').mt(ships[my_id].nx, ships[my_id].ny).lt(nnx, nny);
+
+                time_since_turn += dt;
+            }
+
+            var ship_shapes = {};
+            function create_ship_shape() {
+                var shape = new createjs.Shape();
+                shape.graphics.s("white").f("gray").mt(10, 0).lt(-10, -5).lt(-10, 5).cp();
+                return shape;
+            }
+            function get_ship_shape(client_id) {
+                if (!ship_shapes[client_id]) {
+                    ship_shapes[client_id] = create_ship_shape();
+                    ships_container.addChild(ship_shapes[client_id]);
+                }
+                return ship_shapes[client_id];
+            }
+            var stage;
+            var control_container;
+            var timer_shape;
+            var ships_container;
+            var projections_shape;
+            var control_projection_shape;
+            function init_game(canvas_id) {
+                canvas = $('#' + canvas_id);
+                screen_width = $(document).width();
+                screen_height = $(document).height() - 24;
+                canvas.attr( 'width',  screen_width );
+                canvas.attr( 'height', screen_height );
+                stage = new createjs.Stage(canvas_id);
+
+                projections_shape = new createjs.Shape();
+                stage.addChild(projections_shape);
+
+                control_projection_shape = new createjs.Shape();
+                stage.addChild(control_projection_shape);
+
+                ships_container = new createjs.Container();
+                stage.addChild(ships_container);
+
+                control_container = new createjs.Container();
+                stage.addChild(control_container);
+                control_shape = new createjs.Shape();
+                control_container.addChild(control_shape);
+                control_shape.graphics.s("lightblue").mt(10, 0).lt(-10, -5).lt(-10, 5).cp();
+
+                control_shape = new createjs.Shape();
+                control_container.addChild(control_shape);
+                control_shape.graphics.s("lightblue").mt(5, -10).lt(1, -7).lt(1, -13).cp();
+
+                control_shape = new createjs.Shape();
+                control_container.addChild(control_shape);
+                control_shape.graphics.s("lightblue").mt(-5, -10).lt(-1, -7).lt(-1, -13).cp();
+                control_shape.visible = false;
+
+                control_shape = new createjs.Shape();
+                control_container.addChild(control_shape);
+                control_shape.graphics.s("lightblue").f("lightblue").mt(5, -10).lt(1, -7).lt(1, -13).cp();
+                control_shape.visible = false;
+
+                control_shape = new createjs.Shape();
+                control_container.addChild(control_shape);
+                control_shape.graphics.s("lightblue").f("lightblue").mt(-5, -10).lt(-1, -7).lt(-1, -13).cp();
+                control_shape.visible = false;
+
+                timer_shape = new createjs.Shape();
+                stage.addChild(timer_shape);
+                timer_shape.rotation = -90;
+
+                createjs.Ticker.interval = 25;
+                createjs.Ticker.addEventListener("tick", function(event) {
+                    // if (!event.paused) {
+                        // console.log(event);
+                        update_ships(event.delta / 1000);
+                    // }
+
+                    stage.update(event);
+                });
+
+                this.document.onkeydown = function(event) {
+                    switch (event.code) {
+                        case 'ArrowUp':
+                            // control.a = 1;
+                            if (control.a < 1) {
+                                control.a++;
+                            }
+                        break;
+                        case 'ArrowDown':
+                            // control.a = -1;
+                            if (control.a > 0) {
+                                control.a--;
+                            }
+                        break;
+                        case 'ArrowLeft':
+                            rotating = -1;
+                        break;
+                        case 'ArrowRight':
+                            rotating = +1;
+                        break;
+                    }
+                    // console.log(event.code, rotating, control);
+                }
+                this.document.onkeyup = function(event) {
+                    switch (event.code) {
+                        case 'ArrowUp':
+                            // if (control.a == 1) {
+                            //     control.a = 0;
+                            // }
+                        break;
+                        case 'ArrowDown':
+                            // if (control.a == -1) {
+                            //     control.a = 0;
+                            // }
+                        break;
+                        case 'ArrowLeft':
+                            if (rotating == -1) {
+                                rotating = 0;
+                            }
+                        break;
+                        case 'ArrowRight':
+                            if (rotating == +1) {
+                                rotating = 0;
+                            }
+                        break;
+                    }
+                    // console.log(event.code, rotating, control);
+                }
+            }
+        </script>
+    </head>
+    <body style="background-color:#CCC;margin: 0px">
+        Connection Status:
+        <span id="connection-status"> Disconnected </span>
+         
+        <canvas id="game-canvas" style="background:black;">
+            alternate content
+        </canvas>
+     
+    </body>
+</html>
