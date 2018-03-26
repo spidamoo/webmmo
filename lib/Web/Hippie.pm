@@ -9,7 +9,7 @@ use Plack::Util::Accessor qw( on_error on_message trusted_origin );
 use AnyEvent;
 use AnyEvent::Handle;
 use Plack::Request;
-use JSON;
+use Cpanel::JSON::XS;
 use HTTP::Date;
 use Digest::MD5 qw(md5);
 
@@ -37,7 +37,7 @@ sub handler_pub {
     my ($self, $env, $handler) = @_;
     my $req = Plack::Request->new($env);
     $env->{'hippie.message'} =
-        JSON::from_json($req->parameters->mixed->{'message'}, { utf8 => 1 });
+        decode_json($req->parameters->mixed->{'message'});
     $env->{'PATH_INFO'} = '/message';
 
     $handler->($env);
@@ -138,7 +138,7 @@ sub handler_ws {
                         }
                         else {
                             $env->{'PATH_INFO'} = '/message';
-                            $env->{'hippie.message'} = eval { JSON::decode_json($message) };
+                            $env->{'hippie.message'} = eval { decode_json($message) };
                             if ($@) {
                                 warn $@;
                                 $env->{'PATH_INFO'} = '/error';

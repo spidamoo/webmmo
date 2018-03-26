@@ -16,6 +16,6 @@ $RECYCLE.BIN/
 .DS_Store
 
 
-config.yml
+config/
 *.db
 *.log

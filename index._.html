@@ -182,34 +182,34 @@
 
                     if (control.right) {
                         if (control.up) {
-                            control.move = 8;
+                            control.move = [% MOVE_RU %];
                         }
                         else if (control.down) {
-                            control.move = 2;
+                            control.move = [% MOVE_RD %];
                         }
                         else {
-                            control.move = 1;
+                            control.move = [% MOVE_R %];
                         }
                     }
                     else if (control.left) {
                         if (control.up) {
-                            control.move = 6;
+                            control.move = [% MOVE_LU %];
                         }
                         else if (control.down) {
-                            control.move = 4;
+                            control.move = [% MOVE_LD %];
                         }
                         else {
-                            control.move = 5;
+                            control.move = [% MOVE_L %];
                         }
                     }
                     else if (control.up) {
-                        control.move = 7;
+                        control.move = [% MOVE_U %];
                     }
                     else if (control.down) {
-                        control.move = 3;
+                        control.move = [% MOVE_D %];
                     }
                     else {
-                        control.move = 0;
+                        control.move = [% MOVE_IDLE %];
                     }
 
                     if (old_move != control.move) {
@@ -223,13 +223,13 @@
                 if (control_allowed) {
                     var old_move = control.move;
                     if (control.right) {
-                        control.move = 1;
+                        control.move = [% MOVE_R %];
                     }
                     else if (control.left) {
-                        control.move = 5;
+                        control.move = [% MOVE_L %];
                     }
                     else {
-                        control.move = 0;
+                        control.move = [% MOVE_IDLE %];
                     }
 
                     if (old_move != control.move) {
@@ -237,7 +237,7 @@
                     }
 
                     if (control.up) {
-                        send_msg({type: 'move', 'move': 7});
+                        send_msg({type: 'move', 'move': [% MOVE_U %]});
                     }
                 }
             }
