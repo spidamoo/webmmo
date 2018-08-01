@@ -19,3 +19,6 @@ $RECYCLE.BIN/
 config/
 *.db
 *.log
+
+index.html
+js/Control.js
