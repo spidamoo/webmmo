@@ -1,6 +1,6 @@
 
 const objects = [];
-var zone_type = 'space';
+let zone_type = 'space';
 
 function move_zone(data) {
     console.log('move_zone');

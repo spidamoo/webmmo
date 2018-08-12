@@ -3,9 +3,9 @@ use strict;
 use warnings;
 
 sub new {
-    my ($class, %params) = @_;
+    my ($class, $params) = @_;
 
-    return bless {%params}, $class;
+    return bless $params, $class;
 }
 
 sub send_msg {

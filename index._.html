@@ -8,13 +8,13 @@
         <script src="/js/Game.js"></script>
         <script src="/js/Control.js"></script>
         <script src="/js/Ship.js"></script>
+        <script src="/js/Effect.js"></script>
         <script src="/js/Map.js"></script>
-    </head>
-    <body style="background-color:#CCC;margin: 0px">
-        Connection Status:
-        <span id="connection-status"> Disconnected </span>
-        <br>
+        <script src="/js/Interface.js"></script>
 
+        <link rel="stylesheet" href="/css/interface.css">
+    </head>
+    <body>
         <script>
             const app = new PIXI.Application();
             console.log(app.renderer.type, PIXI.RENDERER_TYPE);
@@ -22,12 +22,12 @@
             document.body.appendChild(app.view);
 
             PIXI.loader
+                .add('monster:asteroid1', '/img/monsters/asteroid1.png')
             .load((loader, resources) => {
-                init_network();
                 init_game();
 
                 app.ticker.add(() => {
-                    const dt = 0.016;//app.ticker.elapsedMS * 0.001;
+                    const dt = app.ticker.elapsedMS * 0.001;
 
                     update_game(dt);
                 });

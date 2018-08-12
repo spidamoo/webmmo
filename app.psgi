@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use v5.24;
+
 use FindBin;
 use lib "$FindBin::Bin/lib";
 use feature 'say';
@@ -18,8 +20,10 @@ use IO::All;
 
 use Game;
 
-# TODO: move to the tools pm?
-use constant DEBUG => $ENV{DEBUG} // $ENV{PLACK_ENV} eq 'development';
+use constant PLACK_ENV => $ENV{PLACK_ENV} || 'development'; # this is not accurate as PLACK_ENV can be later affected by -E arg
+use constant DEBUG     => $ENV{DEBUG}     // PLACK_ENV eq 'development';
+
+printf "running in %s mode\n", PLACK_ENV;
 
 use if DEBUG, 'Data::Dumper';
 
@@ -32,13 +36,24 @@ my %static_files = (
     '/js/Map.js'               => 0,
     '/js/Network.js'           => 0,
     '/js/Ship.js'              => 0,
+    '/js/Effect.js'         => 0,
+    '/js/Interface.js'         => 0,
+
+    '/css/interface.css'       => 0,
+
+    '/img/items/iron.png'           => 0,
+    '/img/items/kinetic_gun.png'    => 0,
+
+    '/img/skills/shoot.png'         => 0,
+
+    '/img/monsters/asteroid1.png'   => 0,
 );
 
 my %html = (
     'js/Control._.js'   => 'js/Control.js',
     'index._.html'      => 'index.html',
 );
-if (DEBUG) {
+if (PLACK_ENV eq 'development') {
     # my $tt = Template->new({});
     while (my ($from, $to) = each %html) {
         # $tt->process($from, undef, $to);
@@ -63,11 +78,9 @@ my $app = builder {
 
         sub {
             my $env = shift;
-            my $client_id = $env->{'hippie.client_id'}; # client id
+            my $client_id = $env->{'hippie.client_id'};
             my $handle    = $env->{'hippie.handle'};
             my $path      = $env->{PATH_INFO};
-
-            # say "$path $client_id";
 
             if ($path eq '/init') {
                 $game->add_player($client_id, $handle);
@@ -76,7 +89,6 @@ my $app = builder {
                 my $messages = $env->{'hippie.message'};
                 $messages = [$messages] unless (ref($messages) eq 'ARRAY');
                 for my $message(@$messages) {
-                    # print STDERR Dumper($message) if DEBUG;
                     $game->process_message($client_id, $message);
                 }
             }
@@ -86,8 +98,6 @@ my $app = builder {
             elsif ($path eq '/disconnect') {
                 $game->remove_player($client_id);
             }
-
-            # print Dumper({ map {$_ => $env->{$_}} grep {$_ =~ /hippie/} keys %$env });
         }
     };
     mount '/' => sub {
@@ -95,9 +105,12 @@ my $app = builder {
 
         if (exists $static_files{ $env->{PATH_INFO} }) {
             my $fn = $static_files{ $env->{PATH_INFO} } ? $static_files{ $env->{PATH_INFO} }->{fn} : './' . $env->{PATH_INFO};
-            my $headers = $static_files{ $env->{PATH_INFO} } ? $static_files{ $env->{PATH_INFO} }->{headers} : [];
-            open my $fh, '<' . $fn;
-            return [200, $headers, $fh];
+
+            if (-e $fn) {
+                my $headers = $static_files{ $env->{PATH_INFO} } ? $static_files{ $env->{PATH_INFO} }->{headers} : [];
+                open my $fh, '<' . $fn;
+                return [200, $headers, $fh];
+            }
         }
 
         return [

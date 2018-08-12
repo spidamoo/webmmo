@@ -1,6 +1,9 @@
-var control = {};
-var control_allowed = true;
-var my_id;
+let control = {};
+let control_allowed = true;
+let skills = [];
+
+let my_id;
+let my_ship;
 
 function init_control() {
     console.log('init_control');
@@ -27,21 +30,30 @@ function init_control() {
                 control.right = true;
             break;
             case 'Space':
-                for (var id in ships) {
-                    var ship = ships[id];
-                    if (ship.type != 'station') {
-                        continue;
-                    }
-                    var my_ship = ships['player_' + my_id];
-                    var dx = my_ship.x - ship.x;
-                    var dy = my_ship.y - ship.y;
-                    var distance = Math.sqrt( Math.pow(dx, 2) + Math.pow(dy, 2) );
-                    if (distance > 100) {
-                        continue;
-                    }
-                    send_msg({type: 'dock', to: id});
-                    break;
-                };
+                if (!my_ship.data.docked) {
+                    for (let id in ships) {
+                        const ship = ships[id];
+                        if (ship.data.type != 'station') {
+                            continue;
+                        }
+                        const dx = my_ship.data.x - ship.data.x;
+                        const dy = my_ship.data.y - ship.data.y;
+                        const distance = Math.sqrt( Math.pow(dx, 2) + Math.pow(dy, 2) );
+                        if (distance > 100) {
+                            continue;
+                        }
+
+                        send_msg({type: 'dock', to: id});
+                        dock();
+                        control_allowed = false;
+                        break;
+                    };
+                }
+                else {
+                    send_msg({type: 'undock'});
+                    undock();
+                    control_allowed = true;
+                }
             break;
         }
         update_control();
@@ -63,16 +75,15 @@ function init_control() {
         }
         update_control();
     }
+    app.view.onclick = function(event) {
+        let angle = Math.atan2(event.offsetY - my_ship.data.y, event.offsetX - my_ship.data.x);
+        use_skill(0, {a: angle});
+    }
 }
 
 function update_control(dt) {
-    if (zone_type == 'space') {
-        update_ship_control(dt);
-    }
-}
-function update_ship_control(dt) {
     if (control_allowed) {
-        var old_move = control.move;
+        let old_move = control.move;
 
         if (control.right) {
             if (control.up) {
