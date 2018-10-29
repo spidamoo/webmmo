@@ -19,6 +19,10 @@ use constant {
 
 use Time::HiRes qw(time);
 use Data::Dumper;
+use Devel::Size qw(total_size);
+use Scalar::Util qw(weaken);
+use Devel::Cycle;
+
 use Tools::ReusableList;
 use Game::Tools qw(roll random_from_list);
 
@@ -50,7 +54,7 @@ sub new {
             space => [
                 {
                     group       => 'asteroid',
-                    frequency   => '1',
+                    frequency   => 1,
                     spawn_at    => {
                         x  => '500..1000',
                         y  => '-200..-100',
@@ -74,10 +78,8 @@ sub new {
         x           => 300,
         y           => 300,
         da          => 0.1,
-        dock        => {
-            geometry => {
-                radius => 100,
-            }
+        geometry => {
+            radius => 100,
         },
     });
 
@@ -90,9 +92,16 @@ sub step {
         for my $ship(values %{ $self->{ships}{$zone} }) {
             $ship->update($dt);
         }
+        for my $ship(values %{ $self->{ships}{$zone} }) {
+            $self->destroy_ship($ship) if $ship->{dead};
+        }
         for my $effect(@{$self->{effects}{$zone}->aref()}) {
             next unless $effect;
             $effect->update($dt);
+        }
+        for my $effect(@{$self->{effects}{$zone}->aref()}) {
+            next unless $effect;
+            $self->remove_effect($effect, notify => $effect->{dead} == 2) if $effect->{dead};
         }
 
         for my $i(0 .. $#{ $self->{spawners}{$zone} }) {
@@ -108,6 +117,7 @@ sub step {
                     spawned_by  => $spawner,
                 });
                 my $id = $spawner->{spawned}->add($spawned);
+                # weaken($spawner->{spawned}{_array}[$id]);
                 $spawned->{id} = sprintf('monster_%d_%d', $i, $id);
 
                 $spawned->{$_} = roll($spawner->{spawn_at}{$_}) for keys(%{ $spawner->{spawn_at} });
@@ -130,6 +140,9 @@ sub spawn_ship {
     $ship->{move}       = 0;
     $ship->{direction}  = MOVE_R;;
     $self->{ships}{$zone}->{ $ship->{id} } = $ship;
+    # weaken($self->{ships}{$zone}->{ $ship->{id} });
+
+    # printf STDERR "spawn ship <%s> <%d> <%dkB>\n", $ship->{id}, scalar(keys %{ $self->{ships}{space} }), total_size($self) / 1024;
 
     if ($ship->{player}) {
         $ship->{player}->send_msg( Game::Network::msg_zone($zone) );
@@ -149,8 +162,23 @@ sub destroy_ship {
     my ($self, $ship) = @_;
     my $zone = $ship->{zone};
     my $id   = $ship->{id};
+    my (undef, undef, $index) = split('_', $id);
     Game::Network::send_ship_destroyed_to($ship, [values %{ $self->{ships}{$zone} }]);
     delete $self->{ships}{$zone}{$id};
+    if ($ship->{spawned_by}) {
+        $ship->{spawned_by}{spawned}->remove($index);
+    }
+
+    # printf STDERR "destroy ship <%s> <%d> <%dkB>\n",
+    #     $id, scalar(keys %{ $self->{ships}{space} }), total_size($self) / 1024;
+    # find_cycle($self, sub {print STDERR Dumper(\@_)});
+}
+
+sub ships_closeby {
+    my ($self, $object) = @_;
+
+    # print STDERR Dumper($ship->{zone}, $self->{ships}{ $ship->{zone} });
+    return [values %{ $self->{ships}{ $object->{zone} } }];
 }
 
 sub on_ship_control_update {
@@ -202,7 +230,10 @@ sub remove_effect {
     my ($self, $effect, %params) = @_;
 
     my $zone = $effect->{zone};
-    $effect->{id} = $self->{effects}{$zone}->remove($effect->{id});
+    if ($params{notify}) {
+        Game::Network::send_effect_destroyed_to($effect, [values %{ $self->{ships}{$zone} }]);
+    }
+    $self->{effects}{$zone}->remove($effect->{id});
 }
 
 sub process_message {
@@ -222,12 +253,9 @@ sub process_message {
     elsif ($message->{type} eq 'dock') {
         return unless defined $message->{to};
         my $station = $self->{ships}{$zone}->{ $message->{to} };
-        return unless $station && $station->{dock};
+        return unless $station && $station->{type} eq 'station';
 
-        my $dx = $ship->{x} - $station->{x};
-        my $dy = $ship->{y} - $station->{y};
-        my $distance = sqrt($dx ** 2 + $dy ** 2);
-        return unless $distance < $station->{dock}{geometry}{radius};
+        return unless $ship->collides($station);
 
         $ship->dock($station);
         $player->send_msg( $station->msg_schemas() );

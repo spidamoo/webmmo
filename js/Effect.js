@@ -15,12 +15,7 @@ function add_effects(data) {
 
     Object.entries(data.effects).forEach(function(s) {
         const [id, effect_data] = s;
-        if (effects[id]) {
-            effects[id].update_data(effect_data);
-        }
-        else {
-            effects[id] = new Effect(id, effect_data);
-        }
+        effects[id] = new Effect(id, effect_data);
     });
 }
 function remove_effect(effect) {

@@ -32,12 +32,21 @@ function process_message(data) {
         case 'ships':
             add_ships(data);
             my_ship = ships['player_' + my_id];
+            if (my_ship.data.docked) {
+                dock();
+            }
+            else {
+                undock();
+            }
         break;
         case 'effects':
             add_effects(data);
         break;
         case 'ship_destroyed':
             ships[data.id].destroy();
+        break;
+        case 'effect_destroyed':
+            effects[data.id].destroy();
         break;
         case 'objects':
             replace_objects(data.objects);
@@ -61,10 +70,12 @@ function process_message(data) {
 }
 
 function dock() {
+    control_allowed = false;
     $equip_window.unfreeze();
 }
 
 function undock() {
+    control_allowed = true;
     $craft_window.hide();
     $equip_window.freeze();
 }

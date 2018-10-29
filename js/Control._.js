@@ -44,19 +44,17 @@ function init_control() {
                         }
 
                         send_msg({type: 'dock', to: id});
-                        dock();
-                        control_allowed = false;
                         break;
                     };
                 }
                 else {
                     send_msg({type: 'undock'});
-                    undock();
-                    control_allowed = true;
                 }
             break;
         }
         update_control();
+
+        event.preventDefault();
     }
     document.onkeyup = function(event) {
         switch (event.code) {
@@ -74,6 +72,8 @@ function init_control() {
             break;
         }
         update_control();
+
+        event.preventDefault();
     }
     app.view.onclick = function(event) {
         let angle = Math.atan2(event.offsetY - my_ship.data.y, event.offsetX - my_ship.data.x);

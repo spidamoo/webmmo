@@ -2,10 +2,14 @@ package Game::Effect;
 use strict;
 use warnings;
 
+use Scalar::Util qw(weaken);
+
 sub new {
     my ($class, $params) = @_;
 
     my $self = bless $params, $class;
+    # weaken($self->{game});
+
     $self->init();
 
     return $self;
@@ -16,10 +20,11 @@ sub init {
 
     for ($self->{codename}) {
         if ($_ eq 'shot') {
-            $self->{speed} = 400;
-            $self->{dx} = $self->{speed} * cos($self->{a});
-            $self->{dy} = $self->{speed} * sin($self->{a});
-            $self->{ttl} = 1;
+            $self->{speed}      = 400;
+            $self->{dx}         = $self->{speed} * cos($self->{a});
+            $self->{dy}         = $self->{speed} * sin($self->{a});
+            $self->{ttl}        = 1;
+            $self->{geometry}   = {radius => 3};
         }
     }
 }
@@ -42,7 +47,19 @@ sub update() {
     if (defined $self->{ttl}) {
         $self->{ttl} -= $dt;
         if ($self->{ttl} < 0) {
-            $self->{game}->remove_effect($self);
+            $self->{dead} = 1;
+        }
+    }
+
+    if ($self->{codename} eq 'shot') {
+        for my $ship(@{$self->{game}->ships_closeby($self)}) {
+            next if $ship->{type} eq 'station';
+            next if $ship->{id}   eq $self->{owner_id};
+            if ( $ship->collides($self) ) {
+                $ship->damage(1);
+                $self->{dead} = 2;
+                last;
+            }
         }
     }
 }
@@ -59,6 +76,13 @@ sub msg {
         type    => 'effects',
         effects => { $_[0]->{id} => $_[0]->msg_contents() },
     }
+}
+
+sub msg_destroyed {
+    return {
+        type    => 'effect_destroyed',
+        id      => $_[0]->{id},
+    };
 }
 
 

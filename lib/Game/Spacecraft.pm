@@ -2,12 +2,18 @@ package Game::Spacecraft;
 use strict;
 use warnings;
 
+use Scalar::Util qw(weaken);
+
 use Game::Item;
 
 sub new {
     my ($class, $params) = @_;
 
     my $self = bless $params, $class;
+    $self->{geometry} //= {radius => 10};
+    # weaken($self->{game});
+    # weaken($self->{player})     if $self->{player};
+    # weaken($self->{spawned_by}) if $self->{spawned_by};
 
     return $self;
 }
@@ -65,7 +71,7 @@ sub update_control {
         }
     }
 
-    my $speed = 100;
+    my $speed = $self->{speed};
     $self->{dx} = $speed * $dx;
     $self->{dy} = $speed * $dy;
 
@@ -86,11 +92,20 @@ sub update {
     }
 }
 
+sub collides {
+    my ($self, $other) = @_;
+
+    my $dx = $self->{x} - $other->{x};
+    my $dy = $self->{y} - $other->{y};
+    my $distance = sqrt($dx ** 2 + $dy ** 2);
+
+    return $distance < ($self->{geometry}{radius} + $other->{geometry}{radius});
+}
+
 sub msg_contents {
     my ($self) = @_;
     return {
         ( map { $_ => $self->{$_} } qw(x y dx dy a da move direction type codename) ),
-        docked => $self->{docked} ? 1 : 0,
     };
 }
 

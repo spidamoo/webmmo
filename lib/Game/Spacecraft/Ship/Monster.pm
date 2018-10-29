@@ -18,7 +18,14 @@ sub new {
 
     if ($self->{group}) {
         $self->{codename} = random_from_list(@{ $groups{ $self->{group} } });
+        if ($self->{group} eq 'asteroid') {
+            $self->{geometry}{radius} = 64;
+        }
     }
+
+    $self->{speed}      = 90;
+    $self->{hp}         = 1;
+    $self->{max_hp}     = 1;
 
     return $self;
 }
@@ -57,10 +64,28 @@ sub update {
         }
 
         if ($unspawn) {
-            $self->{game}->destroy_ship($self);
+            $self->die();
             return;
         }
     }
+
+    if ($self->{group} eq 'asteroid') {
+        for my $ship(@{$self->{game}->ships_closeby($self)}) {
+            next if $ship->{type} eq 'station';
+            next if $ship->{id} eq $self->{id};
+
+            if ( $self->collides($ship) ) {
+                $ship->damage(1);
+                $self->die();
+            }
+        }
+    }
+}
+
+sub die {
+    my ($self) = @_;
+
+    $self->SUPER::die();
 }
 
 1;

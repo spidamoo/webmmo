@@ -12,11 +12,14 @@ sub new {
     my $self = $class->SUPER::new($params);
 
     $self->{type} = 'ship';
-    $self->{inventory} = [Game::Item->new({type => 'resource', codename => 'iron', number => 100})];
+    $self->{inventory}  = [Game::Item->new({type => 'resource', codename => 'iron', number => 100})];
     $self->{equip} = [
         {type => 'weapon'},
     ];
-    $self->{skills} = [];
+    $self->{skills}     = [];
+    $self->{speed}      = 100;
+    $self->{hp}         = 10;
+    $self->{max_hp}     = 10;
 
     return $self;
 }
@@ -34,6 +37,17 @@ sub undock {
     $self->{docked} = undef;
 
     $self->update_control();
+}
+
+sub msg_contents {
+    my ($self) = @_;
+    my $msg = $self->SUPER::msg_contents();
+    return {
+        %$msg,
+        docked => $self->{docked} ? 1 : 0,
+        hp     => $self->{hp},
+        max_hp => $self->{max_hp},
+    }
 }
 
 sub msg_inventory {
@@ -173,11 +187,28 @@ sub use_skill {
                 x        => $self->{x},
                 y        => $self->{y},
                 a        => $params->{a},
+                owner_id => $self->{id},
             }),
                 zone     => $self->{zone} 
             );
         }
     }
+}
+
+
+sub damage {
+    my ($self, $amount) = @_;
+    $self->{hp} -= $amount;
+    if ($self->{hp} <= 0) {
+        $self->die();
+    }
+
+    $self->{game}->on_ship_control_update($self);
+}
+
+sub die {
+    my ($self) = @_;
+    $self->{dead} = 1;
 }
 
 

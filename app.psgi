@@ -3,8 +3,6 @@
 use strict;
 use warnings;
 
-use v5.24;
-
 use FindBin;
 use lib "$FindBin::Bin/lib";
 use feature 'say';

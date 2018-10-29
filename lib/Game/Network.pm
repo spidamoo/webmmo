@@ -67,5 +67,14 @@ sub send_effect_to {
         $whom->{player}->send_msg($msg);
     }
 }
+sub send_effect_destroyed_to {
+    my ($effect, $ships) = @_;
+
+    for my $whom(@$ships) {
+        next unless $whom->{player};
+
+        $whom->{player}->send_msg( $effect->msg_destroyed() );
+    }
+}
 
 1;

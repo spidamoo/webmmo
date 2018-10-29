@@ -51,35 +51,65 @@ class Ship {
         this.draw();
     }
     draw() {
-        this.graphics = new PIXI.Graphics();
+        this.container = new PIXI.Container();
 
         switch (this.data.type) {
             case 'station':
-                this.graphics.lineStyle(1, 0xFFFFFF);
-                this.graphics.beginFill(0xADD8E6).drawCircle(0, 0, 100).endFill();
-                this.graphics.lineStyle(1, 0xFFFFFF);
-                this.graphics.beginFill(0x696969).drawCircle(80, 0, 18).endFill();
+                this.shape = new PIXI.Graphics();
+                this.shape.lineStyle(1, 0xFFFFFF);
+                this.shape.beginFill(0xADD8E6).drawCircle(0, 0, 100).endFill();
+                this.shape.lineStyle(1, 0xFFFFFF);
+                this.shape.beginFill(0x696969).drawCircle(80, 0, 18).endFill();
+
+                this.container.addChild(this.shape);
             break;
             case 'monster':
                 console.log(this.data, PIXI.loader.resources);
-                this.graphics = new PIXI.Sprite(PIXI.loader.resources['monster:' + this.data.codename].texture);
-                this.graphics.anchor.x = 0.5;
-                this.graphics.anchor.y = 0.5;
+                this.shape = new PIXI.Sprite(PIXI.loader.resources['monster:' + this.data.codename].texture);
+                this.shape.anchor.x = 0.5;
+                this.shape.anchor.y = 0.5;
+
+                this.container.addChild(this.shape);
             break;
             default:
-                this.graphics.lineStyle(1, 0xFFFFFF);
-                this.graphics.beginFill(0xd3d3d3).drawPolygon([10, 0, -10, -5, -10, 5]).closePath().endFill();
+                this.shape = new PIXI.Graphics();
+                this.shape.lineStyle(1, 0xFFFFFF);
+                this.shape.beginFill(0xd3d3d3).drawPolygon([10, 0, -10, -5, -10, 5]).closePath().endFill();
+
+                this.container.addChild(this.shape);
         }
 
         console.log('draw ship', this);
 
-        this.graphics.visible = false;
+        this.container.visible = false;
         const container = this.data.type == 'station' ? stations_container : ships_container;
-        container.addChild(this.graphics);
+        container.addChild(this.container);
+
+        if (this.data.max_hp) {
+            this.draw_hp();
+        }
+    }
+
+    draw_hp() {
+        if (!this.hp_graphics) {
+            this.hp_graphics = new PIXI.Graphics();
+            this.hp_graphics.y = 20;
+            this.container.addChild(this.hp_graphics);
+        }
+        this.hp_graphics.clear();
+        for (let i = 0; i < this.data.max_hp; i++) {
+            const x = i * 5 - this.data.max_hp * 2.5;
+            if (this.data.hp > i) {
+                this.hp_graphics.lineStyle(1, 0xFFFFFF).beginFill(0x00FF00).drawRect(x, 0, 5, 5).endFill();
+            }
+            else {
+                this.hp_graphics.lineStyle(1, 0xFFFFFF).beginFill(0x000000).drawRect(x, 0, 5, 5).endFill();
+            }
+        }
     }
 
     update(dt) {
-        this.graphics.visible = true;
+        this.container.visible = true;
 
         // console.log('update ship', this);
 
@@ -91,22 +121,23 @@ class Ship {
             }
         }
 
-        this.graphics.x        = this.data.x;
-        this.graphics.y        = this.data.y;
+        this.container.x        = this.data.x;
+        this.container.y        = this.data.y;
         if (this.data.a !== null) {
-            this.graphics.rotation = this.data.a;
+            this.shape.rotation = this.data.a;
         }
         else {
-            this.graphics.rotation = (this.data.direction - 1) * Math.PI * 0.25 ;
+            this.shape.rotation = (this.data.direction - 1) * Math.PI * 0.25 ;
         }
     }
     update_data(data) {
         this.data = data;
+        this.draw_hp();
     }
 
     destroy() {
         const container = this.data.type == 'station' ? stations_container : ships_container;
-        container.removeChild(this.graphics);
+        container.removeChild(this.container);
         delete ships[this.id];
     }
 }
