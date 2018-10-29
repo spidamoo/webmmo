@@ -26,18 +26,18 @@ printf "running in %s mode\n", PLACK_ENV;
 use if DEBUG, 'Data::Dumper';
 
 my %static_files = (
-    '/'                        => {fn => 'index.html', headers => ['Content-Type' => 'text/html; charset=utf-8']},
-    '/js/easeljs-0.8.2.min.js' => 0,
-    '/js/jquery-3.2.1.min.js'  => 0,
-    '/js/Control.js'           => 0,
-    '/js/Game.js'              => 0,
-    '/js/Map.js'               => 0,
-    '/js/Network.js'           => 0,
-    '/js/Ship.js'              => 0,
-    '/js/Effect.js'         => 0,
-    '/js/Interface.js'         => 0,
+    '/'                         => {fn => 'index.html', headers => ['Content-Type' => 'text/html; charset=utf-8']},
+    '/js/pixi.min.js'           => 0,
+    '/js/jquery-3.2.1.min.js'   => 0,
+    '/js/Control.js'            => 0,
+    '/js/Game.js'               => 0,
+    '/js/Map.js'                => 0,
+    '/js/Network.js'            => 0,
+    '/js/Ship.js'               => 0,
+    '/js/Effect.js'             => 0,
+    '/js/Interface.js'          => 0,
 
-    '/css/interface.css'       => 0,
+    '/css/interface.css'        => 0,
 
     '/img/items/iron.png'           => 0,
     '/img/items/kinetic_gun.png'    => 0,
